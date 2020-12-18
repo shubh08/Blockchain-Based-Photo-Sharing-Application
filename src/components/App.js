@@ -8,13 +8,14 @@ import './App.css';
 
 //Declare IPFS
 const ipfsClient = require('ipfs-http-client')
-const ipfs = ipfsClient({ host: 'ipfs.infura.io', port: 5001, protocol: 'https' }) 
+const ipfs = ipfsClient({ host: 'ipfs.infura.io', port: 5001, protocol: 'https' }) // leaving out the arguments will default to these values
 
 class App extends Component {
 
   async componentWillMount() {
     await this.loadWeb3()
     await this.loadBlockchainData()
+    this.captureUpload()
   }
 
   async loadWeb3() {
@@ -30,25 +31,38 @@ class App extends Component {
     }
   }
 
+
+  captureUpload = function () {
+   console.log('Capture Upload starts')
+    this.state.decentragram.events
+        .ImageCreated({
+          fromBlock: 0,
+          toBlock: "latest",
+        })
+        .on("data", (event) => {
+          //Catch the decision from the Blockchain contract
+          alert('Image uploaded success')
+          console.log('Capture Upload ends')
+         //window.location.reload()
+          console.log('Event values are as follows ----->', event.returnValues)
+
+        })
+        .on("error", console.error);
+   
+  } 
+
   async loadBlockchainData() {
     const web3 = window.web3
     // Load account
     const accounts = await web3.eth.getAccounts()
-   
     this.setState({ account: accounts[0] })
-
-    console.log('Images are', accounts[0])
     // Network ID
     const networkId = await web3.eth.net.getId()
     const networkData = Decentragram.networks[networkId]
-
-    console.log('Network data', networkData)
     if(networkData) {
       const decentragram = new web3.eth.Contract(Decentragram.abi, networkData.address)
       this.setState({ decentragram })
-      console.log('Methods',decentragram.methods);
       const imagesCount = await decentragram.methods.imageCount().call()
-      console.log('Image Count',imagesCount);
       this.setState({ imagesCount })
       // Load images
       for (var i = 1; i <= imagesCount; i++) {
@@ -58,7 +72,6 @@ class App extends Component {
         })
       }
       // Sort images. Show highest tipped images first
-      console.log('Images loading page', this.state.images)
       this.setState({
         images: this.state.images.sort((a,b) => b.tipAmount - a.tipAmount )
       })
@@ -69,7 +82,7 @@ class App extends Component {
   }
 
   captureFile = event => {
-
+    
     event.preventDefault()
     const file = event.target.files[0]
     const reader = new window.FileReader()
@@ -93,7 +106,6 @@ class App extends Component {
       }
 
       this.setState({ loading: true })
-      console.log('Image Address', result[0].hash)
       this.state.decentragram.methods.uploadImage(result[0].hash, description).send({ from: this.state.account }).on('transactionHash', (hash) => {
         this.setState({ loading: false })
       })
